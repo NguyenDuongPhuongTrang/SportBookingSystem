@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Hồ sơ cá nhân - Sport Booking')}"></head>
+<body>
+
+    <!-- Shared Navigation -->
+    <header th:replace="~{fragments/layout :: navbar}"></header>
+
+    <main class="container" style="padding: 40px 20px;">
+
+        <!-- Page Header -->
+        <div class="admin-header glass" style="padding: 28px 32px; margin-bottom: 32px; display: flex; align-items: center; gap: 20px;">
+            <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 24px var(--primary-glow);">
+                <i class="fa-solid fa-circle-user" style="font-size: 36px; color: white;"></i>
+            </div>
+            <div>
+                <h2 id="profile-title" style="font-size: 26px; font-weight: 800; background: linear-gradient(to right, #ffffff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Hồ Sơ Cá Nhân</h2>
+                <p style="color: var(--text-muted); margin-top: 4px;" id="profile-role-badge">Đang tải...</p>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px;">
+
+            <!-- Card: Profile Info -->
+            <div class="glass" style="padding: 32px; border-radius: 16px;">
+                <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-id-card" style="color: var(--primary);"></i> Thông Tin Cá Nhân
+                </h3>
+
+                <form id="profile-form" onsubmit="handleUpdateProfile(event)" novalidate>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-user"></i> Tên đăng nhập
+                        </label>
+                        <input type="text" id="username-input" class="form-input" placeholder="Nhập tên đăng nhập..." required minlength="4" maxlength="50"
+                            style="width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--text-primary); font-size: 15px; transition: all 0.2s; box-sizing: border-box;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-envelope"></i> Email
+                        </label>
+                        <input type="email" id="email-input" class="form-input" placeholder="Nhập địa chỉ email..." required
+                            style="width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--text-primary); font-size: 15px; transition: all 0.2s; box-sizing: border-box;">
+                    </div>
+
+                    <!-- Read-only fields -->
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-shield-halved"></i> Vai trò
+                        </label>
+                        <div id="role-display" style="padding: 12px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; color: var(--text-muted); font-size: 15px;">—</div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 28px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-circle-dot"></i> Trạng thái
+                        </label>
+                        <div id="status-display" style="padding: 12px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; font-size: 15px;">—</div>
+                    </div>
+
+                    <button type="submit" id="save-profile-btn" class="submit-btn" style="width: 100%; padding: 14px; font-size: 15px; border-radius: 10px; position: relative;">
+                        <i class="fa-solid fa-floppy-disk"></i> Lưu thay đổi
+                    </button>
+                </form>
+            </div>
+
+            <!-- Card: Change Password -->
+            <div class="glass" style="padding: 32px; border-radius: 16px;">
+                <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-lock" style="color: var(--primary);"></i> Đổi Mật Khẩu
+                </h3>
+
+                <form id="password-form" onsubmit="handleChangePassword(event)" novalidate>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-key"></i> Mật khẩu hiện tại
+                        </label>
+                        <div style="position: relative;">
+                            <input type="password" id="old-password" class="form-input" placeholder="Nhập mật khẩu hiện tại..." required
+                                style="width: 100%; padding: 12px 44px 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--text-primary); font-size: 15px; box-sizing: border-box;">
+                            <button type="button" onclick="togglePwd('old-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-lock"></i> Mật khẩu mới
+                        </label>
+                        <div style="position: relative;">
+                            <input type="password" id="new-password" class="form-input" placeholder="Tối thiểu 6 ký tự..." required minlength="6"
+                                style="width: 100%; padding: 12px 44px 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--text-primary); font-size: 15px; box-sizing: border-box;">
+                            <button type="button" onclick="togglePwd('new-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 28px;">
+                        <label class="form-label" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-lock"></i> Xác nhận mật khẩu mới
+                        </label>
+                        <div style="position: relative;">
+                            <input type="password" id="confirm-password" class="form-input" placeholder="Nhập lại mật khẩu mới..." required minlength="6"
+                                style="width: 100%; padding: 12px 44px 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--text-primary); font-size: 15px; box-sizing: border-box;">
+                            <button type="button" onclick="togglePwd('confirm-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="change-pwd-btn" class="submit-btn" style="width: 100%; padding: 14px; font-size: 15px; border-radius: 10px; background: linear-gradient(135deg, #e11d48, #be123c);">
+                        <i class="fa-solid fa-shield-halved"></i> Đổi mật khẩu
+                    </button>
+                </form>
+
+                <!-- Security tip -->
+                <div style="margin-top: 24px; padding: 16px; background: rgba(99,102,241,0.08); border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);">
+                    <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6; margin: 0;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i>
+                        <strong style="color: var(--text-primary);">Lưu ý bảo mật:</strong> Mật khẩu phải có ít nhất 6 ký tự. Đừng chia sẻ mật khẩu với bất kỳ ai.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Shared Footer -->
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <style>
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        @media (max-width: 768px) {
+            div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+
+    <script>
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            window.location.href = "/login";
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const navEl = document.getElementById("nav-profile");
+            if (navEl) navEl.classList.add("active");
+            loadProfile();
+        });
+
+        async function loadProfile() {
+            try {
+                const response = await fetch("/api/v1/users/me", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (response.ok && result.status === 200) {
+                    const user = result.data;
+
+                    document.getElementById("username-input").value = user.username || "";
+                    document.getElementById("email-input").value = user.email || "";
+
+                    // Role badge
+                    const roleMap = {
+                        "ROLE_ADMIN": { label: "Quản trị viên", color: "#f59e0b" },
+                        "ROLE_MANAGER": { label: "Quản lý", color: "#6366f1" },
+                        "ROLE_CUSTOMER": { label: "Khách hàng", color: "#10b981" }
+                    };
+                    const roleInfo = roleMap[user.role] || { label: user.role, color: "#94a3b8" };
+                    document.getElementById("role-display").innerHTML =
+                        `<span style="color: ${roleInfo.color}; font-weight: 600;"><i class="fa-solid fa-shield-halved"></i> ${roleInfo.label}</span>`;
+                    document.getElementById("profile-role-badge").innerHTML =
+                        `<span style="color: ${roleInfo.color};"><i class="fa-solid fa-shield-halved"></i> ${roleInfo.label}</span>`;
+
+                    // Status
+                    const isActive = user.active;
+                    document.getElementById("status-display").innerHTML = isActive
+                        ? `<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Đang hoạt động</span>`
+                        : `<span style="color: var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Bị khóa</span>`;
+
+                    // Update header
+                    document.getElementById("profile-title").textContent = `Xin chào, ${user.username}!`;
+                } else {
+                    showToast("Không thể tải thông tin hồ sơ!", "error");
+                }
+            } catch (e) {
+                console.error("Lỗi tải profile:", e);
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+
+        // Helper email validation
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        async function handleUpdateProfile(e) {
+            e.preventDefault();
+            
+            const usernameInput = document.getElementById("username-input");
+            const emailInput = document.getElementById("email-input");
+            
+            clearFormErrors(document.getElementById("profile-form"));
+            
+            let hasError = false;
+            if (!usernameInput.value.trim()) {
+                showFieldError(usernameInput, "Vui lòng nhập tên đăng nhập.");
+                hasError = true;
+            } else if (usernameInput.value.trim().length < 4) {
+                showFieldError(usernameInput, "Tên đăng nhập phải chứa ít nhất 4 ký tự.");
+                hasError = true;
+            }
+            
+            if (!emailInput.value.trim()) {
+                showFieldError(emailInput, "Vui lòng nhập email.");
+                hasError = true;
+            } else if (!validateEmail(emailInput.value)) {
+                showFieldError(emailInput, "Địa chỉ email không hợp lệ.");
+                hasError = true;
+            }
+            
+            if (hasError) return;
+
+            const btn = document.getElementById("save-profile-btn");
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Đang lưu...`;
+
+            try {
+                const response = await fetch("/api/v1/users/me", {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        username: usernameInput.value.trim(), 
+                        email: emailInput.value.trim() 
+                    })
+                });
+                const result = await response.json();
+
+                if (response.ok && result.status === 200) {
+                    showToast("Cập nhật thông tin thành công!");
+                    loadProfile();
+                } else {
+                    if (result.errors) {
+                        for (const [field, msg] of Object.entries(result.errors)) {
+                            let fieldId = field;
+                            if (field === "username") fieldId = "username-input";
+                            else if (field === "email") fieldId = "email-input";
+                            
+                            const input = document.getElementById(fieldId);
+                            if (input) showFieldError(input, msg);
+                        }
+                    } else {
+                        showToast(result.message || "Cập nhật thất bại!", "error");
+                    }
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Lưu thay đổi`;
+            }
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            
+            const oldPwdInput = document.getElementById("old-password");
+            const newPwdInput = document.getElementById("new-password");
+            const confirmPwdInput = document.getElementById("confirm-password");
+
+            clearFormErrors(document.getElementById("password-form"));
+
+            let hasError = false;
+            if (!oldPwdInput.value) {
+                showFieldError(oldPwdInput, "Vui lòng nhập mật khẩu hiện tại.");
+                hasError = true;
+            }
+            if (!newPwdInput.value) {
+                showFieldError(newPwdInput, "Vui lòng nhập mật khẩu mới.");
+                hasError = true;
+            } else if (newPwdInput.value.length < 6) {
+                showFieldError(newPwdInput, "Mật khẩu mới phải chứa ít nhất 6 ký tự.");
+                hasError = true;
+            }
+            if (!confirmPwdInput.value) {
+                showFieldError(confirmPwdInput, "Vui lòng nhập lại mật khẩu mới.");
+                hasError = true;
+            } else if (newPwdInput.value !== confirmPwdInput.value) {
+                showFieldError(confirmPwdInput, "Mật khẩu xác nhận không khớp.");
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            const btn = document.getElementById("change-pwd-btn");
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Đang xử lý...`;
+
+            try {
+                const response = await fetch("/api/v1/users/change-password", {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        oldPassword: oldPwdInput.value, 
+                        newPassword: newPwdInput.value 
+                    })
+                });
+                const result = await response.json();
+
+                if (response.ok && result.status === 200) {
+                    showToast("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
+                    document.getElementById("password-form").reset();
+                    setTimeout(() => {
+                        localStorage.clear();
+                        window.location.href = "/login";
+                    }, 2500);
+                } else {
+                    if (result.errors) {
+                        for (const [field, msg] of Object.entries(result.errors)) {
+                            let fieldId = field;
+                            if (field === "oldPassword") fieldId = "old-password";
+                            else if (field === "newPassword") fieldId = "new-password";
+                            
+                            const input = document.getElementById(fieldId);
+                            if (input) showFieldError(input, msg);
+                        }
+                    } else {
+                        showToast(result.message || "Đổi mật khẩu thất bại!", "error");
+                    }
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-shield-halved"></i> Đổi mật khẩu`;
+            }
+        }
+
+        function togglePwd(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector("i");
+            if (input.type === "password") {
+                input.type = "text";
+                icon.className = "fa-solid fa-eye-slash";
+            } else {
+                input.type = "password";
+                icon.className = "fa-solid fa-eye";
+            }
+        }
+    </script>
+</body>
+</html>

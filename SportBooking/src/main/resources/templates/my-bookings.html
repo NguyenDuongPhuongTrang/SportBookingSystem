@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Lịch đặt của tôi - Sport Booking')}"></head>
+<body>
+
+    <!-- Shared Navigation -->
+    <header th:replace="~{fragments/layout :: navbar}"></header>
+
+    <main class="container bookings-section">
+        <div class="bookings-header">
+            <h2 style="font-size: 28px; font-weight: 800;"><i class="fa-solid fa-receipt" style="color: var(--primary);"></i> Lịch sử đặt sân</h2>
+            <a href="/" class="btn-book" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; box-shadow: 0 4px 12px var(--primary-glow);"><i class="fa-solid fa-plus"></i> Đặt thêm sân</a>
+        </div>
+
+        <!-- Loading state (outside bookings-list-container so it won't be destroyed by innerHTML) -->
+        <div class="empty-state" id="list-loading">
+            <i class="fa-solid fa-circle-notch fa-spin empty-state-icon" style="color: var(--primary);"></i>
+            <p>Đang tải lịch sử đặt sân của bạn...</p>
+        </div>
+
+        <!-- Bookings Container -->
+        <div class="bookings-list" id="bookings-list-container"></div>
+        <div class="pagination-container" id="bookings-pagination" style="margin-top: 20px; border-radius: 12px; border: 1px solid var(--border-glass);"></div>
+
+        <!-- Empty Bookings State -->
+        <div class="empty-state glass" style="display: none; padding: 60px 40px;" id="empty-bookings-state">
+            <i class="fa-solid fa-calendar-xmark empty-state-icon" style="font-size: 64px;"></i>
+            <p style="font-size: 18px; margin-bottom: 20px;">Bạn chưa thực hiện bất kỳ giao dịch đặt sân nào.</p>
+            <a href="/" class="submit-btn" style="max-width: 200px; display: inline-block; text-decoration: none; text-align: center;">Đặt Sân Ngay</a>
+        </div>
+    </main>
+
+    <!-- Shared Footer -->
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <script>
+        // Restrict access
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            window.location.href = "/login";
+        }
+
+        // nav-my-bookings is created dynamically by navbar JS inside DOMContentLoaded,
+        // so we MUST access it inside DOMContentLoaded — never synchronously
+        document.addEventListener("DOMContentLoaded", function() {
+            const navEl = document.getElementById("nav-my-bookings");
+            if (navEl) navEl.classList.add("active");
+            fetchMyBookings();
+        });
+
+        let bookingsPage = 1;
+        const bookingsPageSize = 5;
+        let bookingsData = [];
+
+        // Reusable client-side pagination renderer
+        function renderPagination(containerId, totalItems, currentPage, pageSize, onPageChangeName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const totalPages = Math.ceil(totalItems / pageSize) || 1;
+            
+            // Generate buttons
+            let buttonsHtml = '';
+            
+            // Previous button
+            buttonsHtml += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="${onPageChangeName}(${currentPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+            
+            // Page numbers
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                buttonsHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="${onPageChangeName}(${i})">${i}</button>`;
+            }
+            
+            // Next button
+            buttonsHtml += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="${onPageChangeName}(${currentPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+            
+            const startRecord = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            const endRecord = Math.min(currentPage * pageSize, totalItems);
+            
+            container.innerHTML = `
+                <div class="pagination-info">
+                    Hiển thị <strong>${startRecord}-${endRecord}</strong> trên tổng số <strong>${totalItems}</strong> lịch đặt
+                </div>
+                <div class="pagination-buttons">
+                    ${buttonsHtml}
+                </div>
+            `;
+        }
+
+        async function fetchMyBookings() {
+            const container = document.getElementById("bookings-list-container");
+            const loadingState = document.getElementById("list-loading");
+            const emptyState = document.getElementById("empty-bookings-state");
+            const paginationContainer = document.getElementById("bookings-pagination");
+            
+            // Show loading
+            loadingState.style.display = "block";
+            emptyState.style.display = "none";
+            container.innerHTML = "";
+            paginationContainer.innerHTML = "";
+
+            try {
+                const response = await fetch("/api/v1/bookings/my-bookings", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                // Hide loading
+                loadingState.style.display = "none";
+                
+                if (response.ok && result.status === 200 && result.data && result.data.length > 0) {
+                    bookingsData = result.data.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
+                    renderMyBookingsTable();
+                } else {
+                    bookingsData = [];
+                    emptyState.style.display = "block";
+                }
+            } catch (e) {
+                console.error("Lỗi tải lịch đặt sân:", e);
+                loadingState.style.display = "none";
+                container.innerHTML = `
+                    <div class="empty-state" style="color: var(--danger);">
+                        <i class="fa-solid fa-circle-exclamation empty-state-icon"></i>
+                        <p>Đã xảy ra lỗi khi kết nối máy chủ. Vui lòng thử lại sau.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMyBookingsTable() {
+            const container = document.getElementById("bookings-list-container");
+            container.innerHTML = "";
+            
+            if (bookingsData.length === 0) {
+                document.getElementById("bookings-pagination").innerHTML = "";
+                return;
+            }
+            
+            // Slice page data
+            const start = (bookingsPage - 1) * bookingsPageSize;
+            const end = start + bookingsPageSize;
+            const pageData = bookingsData.slice(start, end);
+            
+            pageData.forEach(booking => {
+                const card = document.createElement("div");
+                card.className = "booking-card glass";
+                
+                let statusText = "Chờ duyệt";
+                let statusClass = "pending";
+                if (booking.status === "CONFIRMED") {
+                    statusText = "Đã xác nhận";
+                    statusClass = "confirmed";
+                } else if (booking.status === "REJECTED") {
+                    statusText = "Bị từ chối";
+                    statusClass = "rejected";
+                }
+                
+                card.innerHTML = `
+                    <div class="booking-details">
+                        <h3>${booking.courtName}</h3>
+                        <div class="booking-meta-row">
+                            <span><i class="fa-solid fa-calendar-day"></i> Ngày: <strong>${formatDate(booking.bookingDate)}</strong></span>
+                            <span><i class="fa-solid fa-clock"></i> Khung giờ: <strong>${booking.timeSlot}</strong></span>
+                            <span><i class="fa-solid fa-hashtag"></i> Mã đơn: #${booking.id}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="badge ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            
+            // Render pagination controls
+            renderPagination("bookings-pagination", bookingsData.length, bookingsPage, bookingsPageSize, "changeMyBookingsPage");
+        }
+
+        function changeMyBookingsPage(page) {
+            bookingsPage = page;
+            renderMyBookingsTable();
+        }
+
+        function formatDate(dateStr) {
+            const parts = dateStr.split("-");
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    </script>
+</body>
+</html>

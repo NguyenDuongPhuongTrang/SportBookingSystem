@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Đăng nhập - Sport Booking')}"></head>
+<body>
+
+    <!-- Shared Navigation -->
+    <header th:replace="~{fragments/layout :: navbar}"></header>
+
+    <main class="container">
+        <div class="form-container glass">
+            <div class="form-header">
+                <h2>Chào mừng trở lại!</h2>
+                <p>Đăng nhập để đặt sân thể thao nhanh chóng</p>
+            </div>
+            
+            <form id="login-form" onsubmit="handleLoginSubmit(event)" novalidate>
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <input type="text" id="username" class="form-control" placeholder="Nhập tên đăng nhập" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <input type="password" id="password" class="form-control" placeholder="Nhập mật khẩu" required autocomplete="current-password">
+                </div>
+                
+                <!-- Forgot Password Trigger -->
+                <div style="text-align: right; margin-bottom: 15px;">
+                    <a href="#" onclick="openForgotPasswordModal()" style="color: var(--primary); text-decoration: none; font-size: 14px;">Quên mật khẩu?</a>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="login-btn">
+                    <span id="btn-text">Đăng nhập</span>
+                    <i class="fa-solid fa-spinner fa-spin" id="btn-spinner" style="display: none;"></i>
+                </button>
+            </form>
+            
+            <div class="form-footer">
+                Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Forgot Password Modal -->
+    <div class="modal" id="forgot-password-modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 class="modal-title">Đặt lại mật khẩu</h3>
+                <button class="modal-close" onclick="closeForgotPasswordModal()">&times;</button>
+            </div>
+            <form id="forgot-password-form" onsubmit="handleForgotPassword(event)" novalidate>
+                <div class="form-group">
+                    <label for="fp-username">Tên đăng nhập</label>
+                    <input type="text" id="fp-username" class="form-control" placeholder="Nhập tên đăng nhập" required>
+                </div>
+                <div class="form-group">
+                    <label for="fp-email">Email đăng ký</label>
+                    <input type="email" id="fp-email" class="form-control" placeholder="Nhập email" required>
+                </div>
+                <div class="form-group">
+                    <label for="fp-newpassword">Mật khẩu mới</label>
+                    <input type="password" id="fp-newpassword" class="form-control" placeholder="Nhập mật khẩu mới" required>
+                </div>
+                <button type="submit" class="submit-btn">Xác nhận thay đổi</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Shared Footer -->
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <script>
+        // Helper email validation
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Redirect if already logged in
+        if (localStorage.getItem("accessToken")) {
+            window.location.href = "/";
+        }
+
+        async function handleLoginSubmit(event) {
+            event.preventDefault();
+            
+            const usernameInput = document.getElementById("username");
+            const passwordInput = document.getElementById("password");
+            
+            // Clear old validation errors
+            clearFormErrors(document.getElementById("login-form"));
+            
+            let hasError = false;
+            if (!usernameInput.value.trim()) {
+                showFieldError(usernameInput, "Vui lòng nhập tên đăng nhập.");
+                hasError = true;
+            }
+            if (!passwordInput.value) {
+                showFieldError(passwordInput, "Vui lòng nhập mật khẩu.");
+                hasError = true;
+            }
+            
+            if (hasError) return;
+
+            const btnText = document.getElementById("btn-text");
+            const btnSpinner = document.getElementById("btn-spinner");
+            const loginBtn = document.getElementById("login-btn");
+            
+            // Disable button & show spinner
+            loginBtn.disabled = true;
+            btnText.style.display = "none";
+            btnSpinner.style.display = "inline-block";
+            
+            try {
+                const response = await fetch("/api/v1/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        username: usernameInput.value,
+                        password: passwordInput.value
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 200) {
+                    showToast("Đăng nhập thành công!");
+                    
+                    // Save JWT and user metadata
+                    localStorage.setItem("accessToken", result.data.accessToken);
+                    localStorage.setItem("refreshToken", result.data.refreshToken);
+                    localStorage.setItem("username", result.data.username);
+                    localStorage.setItem("role", result.data.role);
+                    
+                    // Route based on role
+                    setTimeout(() => {
+                        if (result.data.role === "ROLE_ADMIN" || result.data.role === "ROLE_MANAGER") {
+                            window.location.href = "/admin/dashboard";
+                        } else {
+                            window.location.href = "/";
+                        }
+                    }, 1000);
+                } else {
+                    if (result.errors) {
+                        for (const [field, msg] of Object.entries(result.errors)) {
+                            // Map generic validation field names to form ids if needed
+                            const input = document.getElementById(field);
+                            if (input) showFieldError(input, msg);
+                        }
+                    } else {
+                        showToast(result.message || "Tài khoản hoặc mật khẩu không đúng!", "error");
+                    }
+                }
+            } catch (error) {
+                console.error("Lỗi login:", error);
+                showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                loginBtn.disabled = false;
+                btnText.style.display = "inline";
+                btnSpinner.style.display = "none";
+            }
+        }
+
+        // Forgot password modal operations
+        function openForgotPasswordModal() {
+            clearFormErrors(document.getElementById("forgot-password-form"));
+            document.getElementById("forgot-password-modal").classList.add("active");
+        }
+
+        function closeForgotPasswordModal() {
+            document.getElementById("forgot-password-modal").classList.remove("active");
+        }
+
+        async function handleForgotPassword(event) {
+            event.preventDefault();
+            
+            const usernameInput = document.getElementById("fp-username");
+            const emailInput = document.getElementById("fp-email");
+            const newPasswordInput = document.getElementById("fp-newpassword");
+            
+            clearFormErrors(document.getElementById("forgot-password-form"));
+            
+            let hasError = false;
+            if (!usernameInput.value.trim()) {
+                showFieldError(usernameInput, "Vui lòng nhập tên đăng nhập.");
+                hasError = true;
+            }
+            if (!emailInput.value.trim()) {
+                showFieldError(emailInput, "Vui lòng nhập email.");
+                hasError = true;
+            } else if (!validateEmail(emailInput.value)) {
+                showFieldError(emailInput, "Địa chỉ email không hợp lệ.");
+                hasError = true;
+            }
+            if (!newPasswordInput.value) {
+                showFieldError(newPasswordInput, "Vui lòng nhập mật khẩu mới.");
+                hasError = true;
+            } else if (newPasswordInput.value.length < 6) {
+                showFieldError(newPasswordInput, "Mật khẩu mới phải chứa ít nhất 6 ký tự.");
+                hasError = true;
+            }
+            
+            if (hasError) return;
+            
+            try {
+                const response = await fetch("/api/v1/auth/forgot-password", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ 
+                        username: usernameInput.value, 
+                        email: emailInput.value, 
+                        newPassword: newPasswordInput.value 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 200) {
+                    showToast("Mật khẩu của bạn đã được cập nhật thành công!");
+                    closeForgotPasswordModal();
+                    document.getElementById("forgot-password-form").reset();
+                } else {
+                    if (result.errors) {
+                        for (const [field, msg] of Object.entries(result.errors)) {
+                            // Map forgot password DTO validation field names to UI elements
+                            let fieldId = field;
+                            if (field === "newPassword") fieldId = "fp-newpassword";
+                            else if (field === "username") fieldId = "fp-username";
+                            else if (field === "email") fieldId = "fp-email";
+                            
+                            const input = document.getElementById(fieldId);
+                            if (input) showFieldError(input, msg);
+                        }
+                    } else {
+                        showToast(result.message || "Email hoặc tên đăng nhập không chính xác!", "error");
+                    }
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+    </script>
+</body>
+</html>

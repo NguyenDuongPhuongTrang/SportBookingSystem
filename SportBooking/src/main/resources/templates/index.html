@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Sport Booking - Trang Chủ')}"></head>
+<body>
+
+    <!-- Shared Navigation -->
+    <header th:replace="~{fragments/layout :: navbar}"></header>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="hero glass">
+            <h1>Hệ Thống Đặt Sân Thể Thao Cao Cấp</h1>
+            <p>Trải nghiệm dịch vụ đặt sân chuyên nghiệp, nhanh chóng và tin cậy. Đầy đủ các sân Tennis, Cầu Lông chất lượng chuẩn thi đấu quốc tế.</p>
+            
+            <div class="search-container">
+                <input type="text" id="search-input" class="search-input" placeholder="Tìm kiếm sân theo tên hoặc địa điểm..." oninput="handleSearch()">
+                <button class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+        </section>
+
+        <!-- Court Grid -->
+        <section>
+            <!-- Loading State (outside grid so it won't be destroyed by innerHTML) -->
+            <div class="empty-state" id="loading-state">
+                <i class="fa-solid fa-circle-notch fa-spin empty-state-icon" style="color: var(--primary);"></i>
+                <p>Đang tải danh sách sân...</p>
+            </div>
+
+            <!-- Empty Court State -->
+            <div class="empty-state" style="display: none;" id="empty-courts-state">
+                <i class="fa-solid fa-table-tennis-paddle-ball empty-state-icon"></i>
+                <p>Không tìm thấy sân nào khớp với từ khóa tìm kiếm.</p>
+            </div>
+
+            <div class="court-grid" id="court-grid-container"></div>
+
+            <!-- Pagination -->
+            <div id="courts-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; margin-top: 20px; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-glass); border-radius: 12px; backdrop-filter: blur(12px);"></div>
+        </section>
+    </main>
+
+    <!-- Shared Footer -->
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <!-- Client-side logic to fetch and display courts -->
+    <script>
+        document.getElementById("nav-home").classList.add("active");
+        let searchTimeout;
+
+        // Pagination state
+        let courtsPage = 1;
+        const courtsPageSize = 6;
+        let allCourtsData = [];
+
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchCourts();
+        });
+
+        function handleSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const keyword = document.getElementById("search-input").value;
+                courtsPage = 1; // Reset to first page on new search
+                fetchCourts(keyword);
+            }, 300); // 300ms debounce
+        }
+
+        function renderPagination(containerId, totalItems, currentPage, pageSize, onPageChangeName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (totalItems === 0) {
+                container.style.display = "none";
+                return;
+            }
+            container.style.display = "flex";
+            
+            const totalPages = Math.ceil(totalItems / pageSize) || 1;
+            
+            let buttonsHtml = '';
+            buttonsHtml += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="${onPageChangeName}(${currentPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+            
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                buttonsHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="${onPageChangeName}(${i})">${i}</button>`;
+            }
+            
+            buttonsHtml += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="${onPageChangeName}(${currentPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+            
+            const startRecord = (currentPage - 1) * pageSize + 1;
+            const endRecord = Math.min(currentPage * pageSize, totalItems);
+            
+            container.innerHTML = `
+                <div class="pagination-info">
+                    Hiển thị <strong>${startRecord}–${endRecord}</strong> trên tổng số <strong>${totalItems}</strong> sân
+                </div>
+                <div class="pagination-buttons">
+                    ${buttonsHtml}
+                </div>
+            `;
+        }
+
+        function renderCourtsGrid() {
+            const container = document.getElementById("court-grid-container");
+            const emptyState = document.getElementById("empty-courts-state");
+            
+            container.innerHTML = "";
+            
+            if (allCourtsData.length === 0) {
+                emptyState.style.display = "block";
+                document.getElementById("courts-pagination").style.display = "none";
+                return;
+            }
+            
+            emptyState.style.display = "none";
+            
+            const start = (courtsPage - 1) * courtsPageSize;
+            const end = start + courtsPageSize;
+            const pageData = allCourtsData.slice(start, end);
+            
+            pageData.forEach(court => {
+                const imageUrl = (court.imageUrls && court.imageUrls.length > 0)
+                    ? court.imageUrls[0]
+                    : "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80";
+                
+                const courtCard = document.createElement("div");
+                courtCard.className = "court-card glass";
+                courtCard.innerHTML = `
+                    <div class="court-image-wrapper">
+                        <img src="${imageUrl}" alt="${court.courtName}">
+                    </div>
+                    <div class="court-info">
+                        <h3 class="court-title">${court.courtName}</h3>
+                        <p class="court-location"><i class="fa-solid fa-location-dot"></i> ${court.location}</p>
+                        <div class="court-footer">
+                            <div class="court-price">
+                                ${court.price.toLocaleString('vi-VN')} <span>VND / Slot</span>
+                            </div>
+                            <a href="/courts/${court.id}" class="btn-book">Xem chi tiết</a>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(courtCard);
+            });
+            
+            // Scroll to top of grid when paginating
+            renderPagination("courts-pagination", allCourtsData.length, courtsPage, courtsPageSize, "changeCourtsPage");
+        }
+
+        function changeCourtsPage(page) {
+            courtsPage = page;
+            renderCourtsGrid();
+            // Smooth scroll to courts section
+            document.getElementById("court-grid-container").scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        async function fetchCourts(keyword = "") {
+            const container = document.getElementById("court-grid-container");
+            const loadingState = document.getElementById("loading-state");
+            const emptyState = document.getElementById("empty-courts-state");
+            const paginationEl = document.getElementById("courts-pagination");
+            
+            container.innerHTML = "";
+            loadingState.style.display = "block";
+            emptyState.style.display = "none";
+            paginationEl.style.display = "none";
+            
+            try {
+                let url = "/api/v1/courts";
+                if (keyword.trim()) {
+                    url += `?keyword=${encodeURIComponent(keyword)}`;
+                }
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                loadingState.style.display = "none";
+                
+                if (result.status === 200 && result.data && result.data.length > 0) {
+                    allCourtsData = result.data;
+                    renderCourtsGrid();
+                } else {
+                    allCourtsData = [];
+                    renderCourtsGrid();
+                }
+            } catch (error) {
+                console.error("Lỗi khi tải danh sách sân:", error);
+                loadingState.style.display = "none";
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1; color: var(--danger);">
+                        <i class="fa-solid fa-circle-exclamation empty-state-icon"></i>
+                        <p>Đã xảy ra lỗi khi kết nối với máy chủ. Vui lòng thử lại sau.</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+
+</body>
+</html>

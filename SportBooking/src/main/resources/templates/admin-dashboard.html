@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Bảng quản trị - Sport Booking')}"></head>
+<body>
+
+    <!-- Shared Navigation -->
+    <header th:replace="~{fragments/layout :: navbar}"></header>
+
+    <main class="container">
+        <div class="admin-layout">
+            <!-- Header -->
+            <div class="admin-header glass" style="padding: 24px;">
+                <div>
+                    <h2 style="font-size: 28px; font-weight: 800; background: linear-gradient(to right, #ffffff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Bảng Điều Khiển Quản Trị</h2>
+                    <p style="color: var(--text-muted); margin-top: 5px;">Quản lý đặt sân, danh sách sân thể thao và người dùng hệ thống</p>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="admin-tabs">
+                <button class="tab-btn active" onclick="switchTab(event, 'tab-bookings')"><i class="fa-solid fa-list-check"></i> Quản lý lịch đặt</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-courts')"><i class="fa-solid fa-table-tennis-paddle-ball"></i> Quản lý sân</button>
+                <button class="tab-btn" id="tab-users-btn" onclick="switchTab(event, 'tab-users')"><i class="fa-solid fa-users-gear"></i> Quản lý người dùng</button>
+            </div>
+
+            <!-- TAB 1: BOOKINGS -->
+            <div id="tab-bookings" class="tab-content active">
+                <div class="glass" style="padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
+                        <h3 style="font-size: 20px;">Danh Sách Đơn Đặt Sân</h3>
+                        <button class="btn-small btn-primary" onclick="loadAdminBookings()"><i class="fa-solid fa-rotate"></i> Làm mới</button>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã đơn</th>
+                                    <th>Khách hàng</th>
+                                    <th>Sân thể thao</th>
+                                    <th>Ngày đặt</th>
+                                    <th>Khung giờ</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bookings-table-body">
+                                <!-- Bookings data -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-container" id="bookings-pagination"></div>
+                </div>
+            </div>
+
+            <!-- TAB 2: COURTS -->
+            <div id="tab-courts" class="tab-content">
+                <div class="glass" style="padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
+                        <h3 style="font-size: 20px;">Quản Lý Danh Sách Sân</h3>
+                        <button class="submit-btn" style="max-width: 180px; margin-top: 0; padding: 10px;" onclick="openCourtModal()"><i class="fa-solid fa-plus"></i> Thêm sân mới</button>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã sân</th>
+                                    <th>Ảnh đại diện</th>
+                                    <th>Tên sân</th>
+                                    <th>Vị trí</th>
+                                    <th>Giá thuê (VND)</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="courts-table-body">
+                                <!-- Courts data -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-container" id="courts-pagination"></div>
+                </div>
+            </div>
+
+            <!-- TAB 3: USERS -->
+            <div id="tab-users" class="tab-content">
+                <!-- Create User Form (collapsible) -->
+                <div class="glass" style="padding: 20px; margin-bottom: 20px; display: none;" id="create-user-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; cursor: pointer;" onclick="toggleCreateUserPanel()">
+                        <h3 style="font-size: 18px; display: flex; align-items: center; gap: 10px;">
+                            <i class="fa-solid fa-user-plus" style="color: var(--primary);"></i> Thêm Người Dùng Mới
+                        </h3>
+                        <i class="fa-solid fa-chevron-down" id="create-user-chevron" style="color: var(--text-muted); transition: transform 0.3s;"></i>
+                    </div>
+                    <form id="create-user-form" onsubmit="createNewUser(event)" style="display: none;" novalidate>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                            <div class="form-group">
+                                <label>Tên đăng nhập <span style="color: var(--danger);">*</span></label>
+                                <input type="text" id="new-user-username" class="form-control" placeholder="Tối thiểu 4 ký tự" required minlength="4" maxlength="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Email <span style="color: var(--danger);">*</span></label>
+                                <input type="email" id="new-user-email" class="form-control" placeholder="example@email.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Mật khẩu <span style="color: var(--danger);">*</span></label>
+                                <input type="password" id="new-user-password" class="form-control" placeholder="Tối thiểu 6 ký tự" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label>Vai trò <span style="color: var(--danger);">*</span></label>
+                                <select id="new-user-role" class="form-control" required>
+                                    <option value="ROLE_CUSTOMER">CUSTOMER (Khách hàng)</option>
+                                    <option value="ROLE_MANAGER">MANAGER (Quản lý)</option>
+                                    <option value="ROLE_ADMIN">ADMIN (Quản trị tối cao)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="submit-btn" id="create-user-btn" style="max-width: 220px;">
+                            <i class="fa-solid fa-user-plus"></i> Tạo người dùng
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Users list table -->
+                <div class="glass" style="padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
+                        <h3 style="font-size: 20px;">Quản Lý Thành Viên</h3>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <div class="search-container" style="max-width: 300px; margin: 0;">
+                                <input type="text" id="user-keyword" class="search-input" style="padding: 10px; padding-right: 40px; font-size: 14px;" placeholder="Tìm kiếm người dùng..." oninput="loadUsers()">
+                                <button class="search-btn" style="width: 30px; height: 30px; right: 5px; top: 5px; bottom: 5px;"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            </div>
+                            <button class="btn-small btn-primary" onclick="toggleCreateUserPanel()" style="white-space: nowrap;">
+                                <i class="fa-solid fa-user-plus"></i> Thêm mới
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã số</th>
+                                    <th>Tên đăng nhập</th>
+                                    <th>Email</th>
+                                    <th>Vai trò</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- Users data -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-container" id="users-pagination"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <!-- COURT MODAL (Create/Update) -->
+    <div class="modal" id="court-modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 class="modal-title" id="court-modal-title">Thêm sân mới</h3>
+                <button class="modal-close" onclick="closeCourtModal()">&times;</button>
+            </div>
+            <form id="court-form" onsubmit="saveCourt(event)" novalidate>
+                <input type="hidden" id="court-form-id">
+                
+                <div class="form-group">
+                    <label for="court-name">Tên sân</label>
+                    <input type="text" id="court-name" class="form-control" placeholder="Ví dụ: Sân Tennis VIP 1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="court-location">Vị trí</label>
+                    <input type="text" id="court-location" class="form-control" placeholder="Ví dụ: Quận 2, TP. HCM" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="court-price">Giá thuê mỗi slot (VND)</label>
+                    <input type="number" id="court-price" class="form-control" placeholder="Ví dụ: 150000" min="1000" required>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="court-save-btn">Lưu thông tin</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- IMAGE UPLOAD MODAL -->
+    <div class="modal" id="upload-modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 class="modal-title">Upload hình ảnh cho sân</h3>
+                <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <form id="upload-form" onsubmit="uploadCourtImages(event)" novalidate>
+                <input type="hidden" id="upload-court-id">
+                
+                <div class="form-group">
+                    <label>Chọn tập tin hình ảnh</label>
+                    <input type="file" id="upload-files" class="form-control" multiple accept="image/*" required>
+                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">Hỗ trợ định dạng JPG, PNG. Có thể chọn nhiều ảnh cùng lúc.</small>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="upload-btn">
+                    <span id="upload-btn-text">Bắt đầu Upload lên Cloudinary</span>
+                    <i class="fa-solid fa-spinner fa-spin" id="upload-spinner" style="display: none;"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- USER MODAL (Edit Role/Status) -->
+    <div class="modal" id="user-modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 class="modal-title">Cập nhật thành viên</h3>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            <form id="user-form" onsubmit="saveUser(event)" novalidate>
+                <input type="hidden" id="user-form-id">
+                
+                <div class="form-group">
+                    <label>Tên đăng nhập</label>
+                    <input type="text" id="user-form-username" class="form-control" readonly style="background: rgba(255, 255, 255, 0.05); cursor: not-allowed;">
+                </div>
+                
+                <div class="form-group">
+                    <label for="user-form-role">Vai trò</label>
+                    <select id="user-form-role" class="form-control">
+                        <option value="ROLE_CUSTOMER">CUSTOMER (Khách hàng)</option>
+                        <option value="ROLE_MANAGER">MANAGER (Quản lý)</option>
+                        <option value="ROLE_ADMIN">ADMIN (Quản trị tối cao)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                    <input type="checkbox" id="user-form-active" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="user-form-active" style="margin-bottom: 0; cursor: pointer; user-select: none;">Tài khoản đang kích hoạt</label>
+                </div>
+                
+                <button type="submit" class="submit-btn">Cập nhật thành viên</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Shared Footer -->
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <script>
+        const token = localStorage.getItem("accessToken");
+
+        // Decode JWT payload safely (Base64URL → Base64 → JSON)
+        function decodeJWTPayload(tkn) {
+            try {
+                const base64Url = tkn.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+                return JSON.parse(atob(padded));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Read role from JWT token directly (not localStorage) for reliability
+        const jwtPayload = token ? decodeJWTPayload(token) : null;
+        const role = jwtPayload ? jwtPayload.role : null;
+
+        // Pagination states
+        let bookingsPage = 1;
+        const bookingsPageSize = 5;
+        let bookingsData = [];
+
+        let courtsPage = 1;
+        const courtsPageSize = 5;
+        let courtsData = [];
+
+        let usersPage = 1;
+        const usersPageSize = 5;
+
+        // Reusable client-side pagination renderer
+        function renderPagination(containerId, totalItems, currentPage, pageSize, onPageChangeName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const totalPages = Math.ceil(totalItems / pageSize) || 1;
+            
+            // Generate buttons
+            let buttonsHtml = '';
+            
+            // Previous button
+            buttonsHtml += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="${onPageChangeName}(${currentPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+            
+            // Page numbers
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                buttonsHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="${onPageChangeName}(${i})">${i}</button>`;
+            }
+            
+            // Next button
+            buttonsHtml += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="${onPageChangeName}(${currentPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+            
+            const startRecord = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            const endRecord = Math.min(currentPage * pageSize, totalItems);
+            
+            container.innerHTML = `
+                <div class="pagination-info">
+                    Hiển thị <strong>${startRecord}-${endRecord}</strong> trên tổng số <strong>${totalItems}</strong> mục
+                </div>
+                <div class="pagination-buttons">
+                    ${buttonsHtml}
+                </div>
+            `;
+        }
+
+        // Guard: redirect to login if not authenticated or not authorized (admin/manager only)
+        if (!token || !jwtPayload || (role !== "ROLE_ADMIN" && role !== "ROLE_MANAGER")) {
+            window.location.href = "/login";
+        }
+
+        // nav-admin is created dynamically by navbar JS inside DOMContentLoaded,
+        // so we MUST access it inside DOMContentLoaded — never synchronously
+        document.addEventListener("DOMContentLoaded", function() {
+            const navEl = document.getElementById("nav-admin");
+            if (navEl) navEl.classList.add("active");
+
+            // Hide User tab button for managers
+            if (role === "ROLE_MANAGER") {
+                const usersBtn = document.getElementById("tab-users-btn");
+                if (usersBtn) usersBtn.remove();
+            }
+
+            // Initial load
+            loadAdminBookings();
+        });
+
+        // Tab Switching Logic
+        function switchTab(event, tabId) {
+            document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
+            
+            // Set current active
+            event.currentTarget.classList.add("active");
+            document.getElementById(tabId).classList.add("active");
+            
+            // Load corresponding tab data
+            if (tabId === "tab-bookings") loadAdminBookings();
+            else if (tabId === "tab-courts") loadAdminCourts();
+            else if (tabId === "tab-users") loadUsers();
+        }
+
+        // ==========================================
+        // TAB 1: BOOKING MANAGEMENT LOGIC
+        // ==========================================
+        async function loadAdminBookings() {
+            const tbody = document.getElementById("bookings-table-body");
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách đặt sân...</td></tr>`;
+            
+            try {
+                const response = await fetch("/api/v1/bookings", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.status === 200 && result.data.length > 0) {
+                    bookingsData = result.data.sort((a, b) => b.id - a.id);
+                    renderBookingsTable();
+                } else {
+                    bookingsData = [];
+                    renderBookingsTable();
+                }
+            } catch (e) {
+                console.error("Lỗi bookings:", e);
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger);">Lỗi kết nối máy chủ!</td></tr>`;
+                document.getElementById("bookings-pagination").innerHTML = "";
+            }
+        }
+
+        function renderBookingsTable() {
+            const tbody = document.getElementById("bookings-table-body");
+            tbody.innerHTML = "";
+            
+            if (bookingsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Không tìm thấy dữ liệu đặt sân!</td></tr>`;
+                document.getElementById("bookings-pagination").innerHTML = "";
+                return;
+            }
+            
+            // Slice page data
+            const start = (bookingsPage - 1) * bookingsPageSize;
+            const end = start + bookingsPageSize;
+            const pageData = bookingsData.slice(start, end);
+            
+            pageData.forEach(booking => {
+                const tr = document.createElement("tr");
+                
+                let statusText = "Chờ duyệt";
+                let statusClass = "pending";
+                if (booking.status === "CONFIRMED") {
+                    statusText = "Đã xác nhận";
+                    statusClass = "confirmed";
+                } else if (booking.status === "REJECTED") {
+                    statusText = "Bị từ chối";
+                    statusClass = "rejected";
+                }
+                
+                // Actions HTML
+                let actionsHtml = `<span style="color: var(--text-muted);">Không có hành động</span>`;
+                if (booking.status === "PENDING") {
+                    actionsHtml = `
+                        <div class="btn-group">
+                            <button class="btn-small btn-success" onclick="updateBookingStatus(${booking.id}, 'CONFIRMED')"><i class="fa-solid fa-check"></i> Duyệt</button>
+                            <button class="btn-small btn-danger" onclick="updateBookingStatus(${booking.id}, 'REJECTED')"><i class="fa-solid fa-xmark"></i> Từ chối</button>
+                        </div>
+                    `;
+                }
+                
+                tr.innerHTML = `
+                    <td>#${booking.id}</td>
+                    <td><strong>${booking.customerName}</strong></td>
+                    <td>${booking.courtName}</td>
+                    <td>${formatDate(booking.bookingDate)}</td>
+                    <td><span style="font-weight: 500; color: var(--warning);">${booking.timeSlot}</span></td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td>${actionsHtml}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Render pagination controls
+            renderPagination("bookings-pagination", bookingsData.length, bookingsPage, bookingsPageSize, "changeBookingsPage");
+        }
+
+        function changeBookingsPage(page) {
+            bookingsPage = page;
+            renderBookingsTable();
+        }
+
+        async function updateBookingStatus(id, status) {
+            try {
+                const response = await fetch(`/api/v1/bookings/${id}/status`, {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 200) {
+                    showToast("Cập nhật trạng thái thành công!");
+                    loadAdminBookings();
+                } else {
+                    showToast(result.message || "Cập nhật thất bại!", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+
+        // ==========================================
+        // TAB 2: COURT MANAGEMENT LOGIC
+        // ==========================================
+        async function loadAdminCourts() {
+            const tbody = document.getElementById("courts-table-body");
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách sân...</td></tr>`;
+            
+            try {
+                const response = await fetch("/api/v1/courts");
+                const result = await response.json();
+                
+                if (result.status === 200 && result.data.length > 0) {
+                    courtsData = result.data;
+                    renderCourtsTable();
+                } else {
+                    courtsData = [];
+                    renderCourtsTable();
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger);">Lỗi kết nối máy chủ!</td></tr>`;
+                document.getElementById("courts-pagination").innerHTML = "";
+            }
+        }
+
+        function renderCourtsTable() {
+            const tbody = document.getElementById("courts-table-body");
+            tbody.innerHTML = "";
+            
+            if (courtsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Không tìm thấy sân nào!</td></tr>`;
+                document.getElementById("courts-pagination").innerHTML = "";
+                return;
+            }
+            
+            // Slice page data
+            const start = (courtsPage - 1) * courtsPageSize;
+            const end = start + courtsPageSize;
+            const pageData = courtsData.slice(start, end);
+            
+            pageData.forEach(court => {
+                const tr = document.createElement("tr");
+                const imageUrl = (court.imageUrls && court.imageUrls.length > 0) 
+                    ? court.imageUrls[0] 
+                    : "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80";
+                
+                tr.innerHTML = `
+                    <td>#${court.id}</td>
+                    <td><img src="${imageUrl}" style="width: 70px; height: 45px; object-fit: cover; border-radius: 6px;"></td>
+                    <td><strong>${court.courtName}</strong></td>
+                    <td>${court.location}</td>
+                    <td>${court.price.toLocaleString('vi-VN')}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn-small btn-primary" onclick="openUploadModal(${court.id})"><i class="fa-solid fa-image"></i> Ảnh</button>
+                            <button class="btn-small btn-success" onclick="editCourt(${JSON.stringify(court).replace(/"/g, '&quot;')})"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
+                            <button class="btn-small btn-danger" onclick="deleteCourt(${court.id})"><i class="fa-solid fa-trash-can"></i> Xóa</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Render pagination controls
+            renderPagination("courts-pagination", courtsData.length, courtsPage, courtsPageSize, "changeCourtsPage");
+        }
+
+        function changeCourtsPage(page) {
+            courtsPage = page;
+            renderCourtsTable();
+        }
+
+        function openCourtModal() {
+            document.getElementById("court-form-id").value = "";
+            document.getElementById("court-form").reset();
+            document.getElementById("court-modal-title").innerText = "Thêm sân mới";
+            document.getElementById("court-modal").classList.add("active");
+        }
+
+        function closeCourtModal() {
+            document.getElementById("court-modal").classList.remove("active");
+        }
+
+        function editCourt(court) {
+            document.getElementById("court-form-id").value = court.id;
+            document.getElementById("court-name").value = court.courtName;
+            document.getElementById("court-location").value = court.location;
+            document.getElementById("court-price").value = court.price;
+            document.getElementById("court-modal-title").innerText = `Cập nhật Sân #${court.id}`;
+            document.getElementById("court-modal").classList.add("active");
+        }
+
+        async function saveCourt(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById("court-form-id").value;
+            const courtNameInput = document.getElementById("court-name");
+            const locationInput = document.getElementById("court-location");
+            const priceInput = document.getElementById("court-price");
+            
+            clearFormErrors(document.getElementById("court-form"));
+            
+            let hasError = false;
+            if (!courtNameInput.value.trim()) {
+                showFieldError(courtNameInput, "Vui lòng nhập tên sân.");
+                hasError = true;
+            }
+            if (!locationInput.value.trim()) {
+                showFieldError(locationInput, "Vui lòng nhập vị trí sân.");
+                hasError = true;
+            }
+            if (!priceInput.value) {
+                showFieldError(priceInput, "Vui lòng nhập giá thuê.");
+                hasError = true;
+            } else if (parseFloat(priceInput.value) < 1000) {
+                showFieldError(priceInput, "Giá thuê phải tối thiểu từ 1,000 VND.");
+                hasError = true;
+            }
+            
+            if (hasError) return;
+
+            const url = id ? `/api/v1/courts/${id}` : "/api/v1/courts";
+            const method = id ? "PUT" : "POST";
+            
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        courtName: courtNameInput.value.trim(), 
+                        location: locationInput.value.trim(), 
+                        price: parseFloat(priceInput.value) 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && (result.status === 200 || result.status === 201)) {
+                    showToast(id ? "Cập nhật sân thành công!" : "Tạo sân mới thành công!");
+                    closeCourtModal();
+                    loadAdminCourts();
+                } else {
+                    if (result.errors) {
+                        for (const [field, msg] of Object.entries(result.errors)) {
+                            let fieldId = field;
+                            if (field === "courtName") fieldId = "court-name";
+                            else if (field === "location") fieldId = "court-location";
+                            else if (field === "price") fieldId = "court-price";
+                            
+                            const input = document.getElementById(fieldId);
+                            if (input) showFieldError(input, msg);
+                        }
+                    } else {
+                        showToast(result.message || "Lưu thông tin sân thất bại!", "error");
+                    }
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+
+        async function deleteCourt(id) {
+            if (!confirm(`Bạn có chắc chắn muốn xóa Sân #${id} không? Hành động này cũng sẽ xóa toàn bộ đơn đặt sân và hình ảnh liên quan.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/courts/${id}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 200) {
+                    showToast("Xóa sân thành công!");
+                    loadAdminCourts();
+                } else {
+                    showToast(result.message || "Xóa sân thất bại!", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+
+        // ==========================================
+        // Cloudinary Images Upload Operations
+        // ==========================================
+        function openUploadModal(courtId) {
+            document.getElementById("upload-court-id").value = courtId;
+            document.getElementById("upload-files").value = "";
+            document.getElementById("upload-modal").classList.add("active");
+        }
+
+        function closeUploadModal() {
+            document.getElementById("upload-modal").classList.remove("active");
+        }
+
+        async function uploadCourtImages(event) {
+            event.preventDefault();
+            
+            const courtId = document.getElementById("upload-court-id").value;
+            const fileInput = document.getElementById("upload-files");
+            const files = fileInput.files;
+            
+            clearFormErrors(document.getElementById("upload-form"));
+            
+            if (files.length === 0) {
+                showFieldError(fileInput, "Vui lòng chọn ít nhất 1 hình ảnh.");
+                return;
+            }
+            
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append("files", files[i]);
+            }
+            
+            const btnText = document.getElementById("upload-btn-text");
+            const btnSpinner = document.getElementById("upload-spinner");
+            const uploadBtn = document.getElementById("upload-btn");
+            
+            uploadBtn.disabled = true;
+            btnText.style.display = "none";
+            btnSpinner.style.display = "inline-block";
+            
+            try {
+                const response = await fetch(`/api/v1/courts/${courtId}/images`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 201) {
+                    showToast("Upload và lưu hình ảnh lên Cloudinary thành công!");
+                    closeUploadModal();
+                    loadAdminCourts();
+                } else {
+                    showToast(result.message || "Upload thất bại!", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                uploadBtn.disabled = false;
+                btnText.style.display = "inline";
+                btnSpinner.style.display = "none";
+            }
+        }
+
+        // ==========================================
+        // TAB 3: USER MANAGEMENT LOGIC
+        // ==========================================
+        async function loadUsers(page = 1) {
+            if (role !== "ROLE_ADMIN") return; // Security safeguard client-side
+
+            usersPage = page;
+            const tbody = document.getElementById("users-table-body");
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải thành viên...</td></tr>`;
+            
+            const keyword = document.getElementById("user-keyword").value;
+            
+            try {
+                let url = `/api/v1/admin/users?page=${page - 1}&size=${usersPageSize}`;
+                if (keyword.trim()) {
+                    url += `&keyword=${encodeURIComponent(keyword)}`;
+                }
+                
+                const response = await fetch(url, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                
+                const result = await response.json();
+                
+                tbody.innerHTML = "";
+                
+                if (result.status === 200 && result.data.content && result.data.content.length > 0) {
+                    result.data.content.forEach(user => {
+                        const tr = document.createElement("tr");
+                        
+                        let roleBadge = `<span style="font-size:12px; font-weight:600; padding:4px 8px; border-radius:4px; background: rgba(99, 102, 241, 0.15); color: var(--secondary)">CUSTOMER</span>`;
+                        if (user.role === "ROLE_ADMIN") {
+                            roleBadge = `<span style="font-size:12px; font-weight:600; padding:4px 8px; border-radius:4px; background: rgba(239, 68, 68, 0.15); color: var(--danger)">ADMIN</span>`;
+                        } else if (user.role === "ROLE_MANAGER") {
+                            roleBadge = `<span style="font-size:12px; font-weight:600; padding:4px 8px; border-radius:4px; background: rgba(6, 182, 212, 0.15); color: var(--primary)">MANAGER</span>`;
+                        }
+                        
+                        const statusBadge = user.active 
+                            ? `<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Đang hoạt động</span>`
+                            : `<span style="color: var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Bị khóa</span>`;
+                            
+                        tr.innerHTML = `
+                            <td>#${user.id}</td>
+                            <td><strong>${user.username}</strong></td>
+                            <td>${user.email}</td>
+                            <td>${roleBadge}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn-small btn-primary" onclick="editUser(${JSON.stringify(user).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> Sửa</button>
+                                    <button class="btn-small btn-danger" onclick="deleteUser(${user.id})"><i class="fa-solid fa-trash-can"></i> Xóa</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    
+                    // Render backend pagination
+                    renderPagination("users-pagination", result.data.totalElements, usersPage, usersPageSize, "changeUsersPage");
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Không tìm thấy thành viên nào!</td></tr>`;
+                    document.getElementById("users-pagination").innerHTML = "";
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger);">Lỗi kết nối máy chủ!</td></tr>`;
+                document.getElementById("users-pagination").innerHTML = "";
+            }
+        }
+
+        function changeUsersPage(page) {
+            loadUsers(page);
+        }
+
+        function editUser(user) {
+            document.getElementById("user-form-id").value = user.id;
+            document.getElementById("user-form-username").value = user.username;
+            document.getElementById("user-form-role").value = user.role;
+            document.getElementById("user-form-active").checked = user.active;
+            
+            document.getElementById("user-modal").classList.add("active");
+        }
+
+        function closeUserModal() {
+            document.getElementById("user-modal").classList.remove("active");
+        }
+
+        async function saveUser(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById("user-form-id").value;
+            const roleSelection = document.getElementById("user-form-role").value;
+            const activeStatus = document.getElementById("user-form-active").checked;
+            const username = document.getElementById("user-form-username").value;
+            
+            // Re-fetch email from the user object in display table
+            const email = document.querySelector(`#users-table-body tr`).children[2].innerText; 
+            
+            try {
+                const response = await fetch(`/api/v1/admin/users/${id}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        role: roleSelection,
+                        active: activeStatus
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 200) {
+                    showToast("Cập nhật thành viên thành công!");
+                    closeUserModal();
+                    loadUsers();
+                } else {
+                    showToast(result.message || "Cập nhật thành viên thất bại!", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm(`Bạn có chắc chắn muốn xóa thành viên #${id} này không?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/admin/users/${id}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 200) {
+                    showToast("Xóa thành viên thành công!");
+                    loadUsers();
+                } else {
+                    showToast(result.message || "Xóa thành viên thất bại!", "error");
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+
+        // Common Date formatter helper
+        function formatDate(dateStr) {
+            const parts = dateStr.split("-");
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        // ==========================================
+        // CREATE USER PANEL TOGGLE
+        // ==========================================
+        let createUserPanelOpen = false;
+        function toggleCreateUserPanel() {
+            createUserPanelOpen = !createUserPanelOpen;
+            const panel = document.getElementById("create-user-panel");
+            const form = document.getElementById("create-user-form");
+            const chevron = document.getElementById("create-user-chevron");
+            if (createUserPanelOpen) {
+                panel.style.display = "block";
+                form.style.display = "block";
+                chevron.style.transform = "rotate(180deg)";
+            } else {
+                panel.style.display = "none";
+                form.style.display = "none";
+                chevron.style.transform = "rotate(0deg)";
+            }
+        }
+
+        // Helper email validation
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        async function createNewUser(event) {
+            event.preventDefault();
+            
+            const usernameInput = document.getElementById("new-user-username");
+            const emailInput = document.getElementById("new-user-email");
+            const passwordInput = document.getElementById("new-user-password");
+            const roleInput = document.getElementById("new-user-role");
+            
+            clearFormErrors(document.getElementById("create-user-form"));
+            
+            let hasError = false;
+            if (!usernameInput.value.trim()) {
+                showFieldError(usernameInput, "Vui lòng nhập tên đăng nhập.");
+                hasError = true;
+            } else if (usernameInput.value.trim().length < 4) {
+                showFieldError(usernameInput, "Tên đăng nhập phải chứa ít nhất 4 ký tự.");
+                hasError = true;
+            }
+            
+            if (!emailInput.value.trim()) {
+                showFieldError(emailInput, "Vui lòng nhập email.");
+                hasError = true;
+            } else if (!validateEmail(emailInput.value)) {
+                showFieldError(emailInput, "Địa chỉ email không hợp lệ.");
+                hasError = true;
+            }
+            
+            if (!passwordInput.value) {
+                showFieldError(passwordInput, "Vui lòng nhập mật khẩu.");
+                hasError = true;
+            } else if (passwordInput.value.length < 6) {
+                showFieldError(passwordInput, "Mật khẩu phải chứa ít nhất 6 ký tự.");
+                hasError = true;
+            }
+            
+            if (hasError) return;
+
+            const btn = document.getElementById("create-user-btn");
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Đang tạo...`;
+
+            try {
+                const response = await fetch("/api/v1/admin/users", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        username: usernameInput.value.trim(), 
+                        email: emailInput.value.trim(), 
+                        password: passwordInput.value, 
+                        role: roleInput.value 
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && (result.status === 200 || result.status === 201)) {
+                    showToast(`Tạo tài khoản "${usernameInput.value.trim()}" thành công!`);
+                    document.getElementById("create-user-form").reset();
+                    toggleCreateUserPanel(); // close panel
+                    loadUsers();             // refresh table
+                } else {
+                    if (result.errors) {
+                        for (const [field, msg] of Object.entries(result.errors)) {
+                            let fieldId = `new-user-${field}`;
+                            const input = document.getElementById(fieldId);
+                            if (input) showFieldError(input, msg);
+                        }
+                    } else {
+                        showToast(result.message || "Tạo tài khoản thất bại!", "error");
+                    }
+                }
+            } catch (e) {
+                showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-user-plus"></i> Tạo người dùng`;
+            }
+        }
+    </script>
+</body>
+</html>

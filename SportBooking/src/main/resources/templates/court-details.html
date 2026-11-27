@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Chi tiết sân - Sport Booking')}"></head>
+<body>
+
+    <!-- Shared Navigation -->
+    <header th:replace="~{fragments/layout :: navbar}"></header>
+
+    <main class="container">
+        <div class="details-layout">
+            <!-- Left Side: Court Image & Meta Details -->
+            <div class="details-main glass" id="court-details-content">
+                <!-- Loading State -->
+                <div class="empty-state" id="details-loading">
+                    <i class="fa-solid fa-circle-notch fa-spin empty-state-icon" style="color: var(--primary);"></i>
+                    <p>Đang tải thông tin chi tiết sân...</p>
+                </div>
+            </div>
+
+            <!-- Right Side: Booking Panel -->
+            <div class="booking-sidebar glass">
+                <h3 class="booking-title"><i class="fa-solid fa-clock-rotate-left"></i> Đặt lịch chơi</h3>
+                
+                <div class="date-picker-group">
+                    <label for="booking-date" style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 14px; font-weight: 500;">Chọn Ngày</label>
+                    <input type="date" id="booking-date" class="form-control" onchange="loadBookedSlots()">
+                </div>
+                
+                <div class="slots-title">Chọn Khung Giờ</div>
+                <div class="slots-grid" id="slots-grid-container">
+                    <!-- Slots will be rendered here dynamically -->
+                </div>
+                
+                <button type="button" class="submit-btn" onclick="openBookingModal()" id="btn-book-submit" style="margin-top: 15px;">
+                    Đặt sân ngay
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Booking Confirmation Modal -->
+    <div class="modal" id="booking-modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3 class="modal-title">Xác nhận đặt sân</h3>
+                <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+            </div>
+            
+            <div style="margin-bottom: 25px; line-height: 1.6;">
+                <p>Quý khách vui lòng xác nhận lại thông tin lịch đặt sân:</p>
+                <div style="background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 10px; margin-top: 15px; border: 1px solid var(--border-glass);">
+                    <div><strong>Sân thể thao:</strong> <span id="confirm-court-name" style="color: var(--primary); font-weight: 600;">-</span></div>
+                    <div><strong>Địa điểm:</strong> <span id="confirm-location">-</span></div>
+                    <div><strong>Ngày đặt:</strong> <span id="confirm-date" style="font-weight: 600;">-</span></div>
+                    <div><strong>Khung giờ:</strong> <span id="confirm-slot" style="color: var(--warning); font-weight: 600;">-</span></div>
+                    <div style="border-top: 1px solid var(--border-glass); margin-top: 10px; padding-top: 10px;">
+                        <strong>Tổng chi phí:</strong> <span id="confirm-price" style="color: var(--success); font-size: 18px; font-weight: 800;">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="submit-btn" onclick="submitBooking()" id="confirm-booking-btn">
+                <span id="confirm-btn-text">Xác nhận thanh toán & Đặt</span>
+                <i class="fa-solid fa-spinner fa-spin" id="confirm-btn-spinner" style="display: none;"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Shared Footer -->
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <script>
+        const courtId = window.location.pathname.split("/").pop();
+        let courtData = null;
+        let selectedSlot = null;
+
+        // Supported hours slots
+        const timeSlots = [
+            "06:00 - 07:00", "07:00 - 08:00", "08:00 - 09:00", "09:00 - 10:00",
+            "10:00 - 11:00", "14:00 - 15:00", "15:00 - 16:00", "16:00 - 17:00",
+            "17:00 - 18:00", "18:00 - 19:00", "19:00 - 20:00", "20:00 - 21:00",
+            "21:00 - 22:00"
+        ];
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Setup minimum date to today
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const formattedToday = `${yyyy}-${mm}-${dd}`;
+            
+            const dateInput = document.getElementById("booking-date");
+            dateInput.value = formattedToday;
+            dateInput.min = formattedToday;
+
+            fetchCourtDetails();
+        });
+
+        async function fetchCourtDetails() {
+            try {
+                const response = await fetch(`/api/v1/courts/${courtId}`);
+                const result = await response.json();
+                
+                if (result.status === 200) {
+                    courtData = result.data;
+                    renderCourtDetails();
+                    loadBookedSlots();
+                } else {
+                    document.getElementById("court-details-content").innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <i class="fa-solid fa-circle-exclamation empty-state-icon"></i>
+                            <p>${result.message || "Không thể tải dữ liệu sân!"}</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderCourtDetails() {
+            const container = document.getElementById("court-details-content");
+            const imageUrl = (courtData.imageUrls && courtData.imageUrls.length > 0) 
+                ? courtData.imageUrls[0] 
+                : "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80";
+            
+            container.innerHTML = `
+                <div class="details-image-main">
+                    <img src="${imageUrl}" alt="${courtData.courtName}">
+                </div>
+                <div class="details-meta">
+                    <h1>${courtData.courtName}</h1>
+                    <p class="court-location"><i class="fa-solid fa-location-dot"></i> ${courtData.location}</p>
+                    <div style="border-top: 1px solid var(--border-glass); margin-top: 20px; padding-top: 20px;">
+                        <h4 style="margin-bottom: 10px; color: var(--text-muted);">Mô tả & Thông tin sân</h4>
+                        <p style="color: var(--text-muted); line-height: 1.6; font-size: 15px;">
+                            Sân thể thao chuyên nghiệp được trang bị hệ thống chiếu sáng LED hiện đại chống chói, mặt sân phủ sơn cao cấp tiêu chuẩn giúp tăng độ bám. 
+                            Đầy đủ tiện ích kèm theo như phòng thay đồ, chỗ để xe rộng rãi và nước uống miễn phí. Thích hợp cho cả tập luyện chuyên nghiệp lẫn thi đấu phong trào.
+                        </p>
+                    </div>
+                    <div class="details-price">
+                        ${courtData.price.toLocaleString('vi-VN')} <span style="font-size: 14px; color: var(--text-muted); font-weight: 400;">VND / Slot (60 phút)</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadBookedSlots() {
+            const date = document.getElementById("booking-date").value;
+            if (!date) return;
+            
+            selectedSlot = null; // Clear selection
+            
+            const gridContainer = document.getElementById("slots-grid-container");
+            gridContainer.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="color: var(--primary);"></i>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/v1/bookings/booked-slots?courtId=${courtId}&date=${date}`);
+                const result = await response.json();
+                
+                gridContainer.innerHTML = "";
+                
+                const bookedSlots = result.status === 200 ? result.data : [];
+                
+                timeSlots.forEach(slot => {
+                    const isBooked = bookedSlots.includes(slot);
+                    const slotEl = document.createElement("div");
+                    slotEl.className = `slot-item ${isBooked ? 'booked' : ''}`;
+                    slotEl.innerText = slot;
+                    
+                    if (!isBooked) {
+                        slotEl.onclick = () => selectSlot(slotEl, slot);
+                    }
+                    
+                    gridContainer.appendChild(slotEl);
+                });
+            } catch (e) {
+                console.error("Lỗi khi tải lịch đặt sân:", e);
+                gridContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--danger); font-size: 14px;">Không thể tải lịch đặt sân!</div>`;
+            }
+        }
+
+        function selectSlot(element, slot) {
+            // Deselect previous
+            document.querySelectorAll(".slot-item.selected").forEach(el => el.classList.remove("selected"));
+            
+            element.classList.add("selected");
+            selectedSlot = slot;
+        }
+
+        function openBookingModal() {
+            const token = localStorage.getItem("accessToken");
+            if (!token) {
+                showToast("Vui lòng đăng nhập để tiến hành đặt sân!", "error");
+                setTimeout(() => {
+                    window.location.href = "/login";
+                }, 1500);
+                return;
+            }
+
+            if (!selectedSlot) {
+                showToast("Vui lòng chọn khung giờ muốn đặt!", "error");
+                return;
+            }
+
+            const date = document.getElementById("booking-date").value;
+            
+            document.getElementById("confirm-court-name").innerText = courtData.courtName;
+            document.getElementById("confirm-location").innerText = courtData.location;
+            document.getElementById("confirm-date").innerText = formatDateString(date);
+            document.getElementById("confirm-slot").innerText = selectedSlot;
+            document.getElementById("confirm-price").innerText = `${courtData.price.toLocaleString('vi-VN')} VND`;
+            
+            document.getElementById("booking-modal").classList.add("active");
+        }
+
+        function closeBookingModal() {
+            document.getElementById("booking-modal").classList.remove("active");
+        }
+
+        async function submitBooking() {
+            const token = localStorage.getItem("accessToken");
+            const date = document.getElementById("booking-date").value;
+            
+            const btnText = document.getElementById("confirm-btn-text");
+            const btnSpinner = document.getElementById("confirm-btn-spinner");
+            const confirmBtn = document.getElementById("confirm-booking-btn");
+            
+            confirmBtn.disabled = true;
+            btnText.style.display = "none";
+            btnSpinner.style.display = "inline-block";
+            
+            try {
+                const response = await fetch("/api/v1/bookings", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        courtId: parseInt(courtId),
+                        bookingDate: date,
+                        timeSlot: selectedSlot
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && (result.status === 201 || result.status === 200)) {
+                    showToast("Đặt sân thành công! Đang chuyển đến trang lịch đặt của bạn...");
+                    closeBookingModal();
+                    setTimeout(() => {
+                        window.location.href = "/my-bookings";
+                    }, 1500);
+                } else {
+                    showToast(result.message || "Đặt sân thất bại, khung giờ có thể đã bị người khác chọn trước!", "error");
+                    closeBookingModal();
+                    loadBookedSlots(); // Reload slots
+                }
+            } catch (e) {
+                console.error("Lỗi đặt sân:", e);
+                showToast("Lỗi kết nối máy chủ!", "error");
+                closeBookingModal();
+            } finally {
+                confirmBtn.disabled = false;
+                btnText.style.display = "inline";
+                btnSpinner.style.display = "none";
+            }
+        }
+
+        function formatDateString(dateStr) {
+            const parts = dateStr.split("-");
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    </script>
+</body>
+</html>

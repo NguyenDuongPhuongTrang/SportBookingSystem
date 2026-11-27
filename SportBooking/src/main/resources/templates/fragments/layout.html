@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Sports Court Booking</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Sleek CSS Custom Theme -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Header & Navigation Bar Fragment -->
+    <header th:fragment="navbar">
+        <div class="container">
+            <nav class="navbar glass">
+                <a href="/" class="logo-container">
+                    <i class="fa-solid fa-circle-nodes logo-icon"></i>
+                    <span class="logo-text">SPORT BOOKING</span>
+                </a>
+                
+                <ul class="nav-links" id="nav-links-list">
+                    <li><a href="/" id="nav-home"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
+                    <!-- Dynamic links will be populated by JS -->
+                    <li class="guest-link"><a href="/login" id="nav-login"><i class="fa-solid fa-right-to-bracket"></i> Đăng nhập</a></li>
+                    <li class="guest-link"><a href="/register" id="nav-register" class="nav-btn"><i class="fa-solid fa-user-plus"></i> Đăng ký</a></li>
+                </ul>
+            </nav>
+        </div>
+        
+        <!-- Script to handle Authentication state in Navbar -->
+        <script>
+            // Validation helper functions
+            window.showFieldError = function(inputElement, message) {
+                if (!inputElement) return;
+                inputElement.classList.add('is-invalid');
+                const formGroup = inputElement.closest('.form-group');
+                if (!formGroup) return;
+                let feedback = formGroup.querySelector('.invalid-feedback');
+                if (!feedback) {
+                    feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    formGroup.appendChild(feedback);
+                }
+                feedback.textContent = message;
+            };
+
+            window.clearFieldError = function(inputElement) {
+                if (!inputElement) return;
+                inputElement.classList.remove('is-invalid');
+                const formGroup = inputElement.closest('.form-group');
+                if (formGroup) {
+                    const feedback = formGroup.querySelector('.invalid-feedback');
+                    if (feedback) {
+                        feedback.remove();
+                    }
+                }
+            };
+
+            window.clearFormErrors = function(formElement) {
+                if (!formElement) return;
+                formElement.querySelectorAll('.is-invalid').forEach(input => {
+                    input.classList.remove('is-invalid');
+                });
+                formElement.querySelectorAll('.invalid-feedback').forEach(feedback => {
+                    feedback.remove();
+                });
+            };
+
+            // Auto clear error state when user types/inputs
+            document.addEventListener('input', function(event) {
+                if (event.target.classList.contains('is-invalid') || event.target.closest('.is-invalid')) {
+                    window.clearFieldError(event.target);
+                }
+            });
+
+            // Decode JWT payload - handle Base64URL encoding (JWT uses - and _ instead of + and /)
+            function decodeJWTPayload(token) {
+                try {
+                    const base64Url = token.split('.')[1];
+                    // Convert Base64URL to standard Base64
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    // Pad to multiple of 4
+                    const padded = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+                    return JSON.parse(atob(padded));
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                const token = localStorage.getItem("accessToken");
+                const navLinks = document.getElementById("nav-links-list");
+                
+                // Clear any leftover guest links if authenticated
+                if (token) {
+                    const payload = decodeJWTPayload(token);
+                    if (payload) {
+                        const username = payload.sub;
+                        const role = payload.role;
+                        
+                        // Select and remove guest items
+                        document.querySelectorAll(".guest-link").forEach(el => el.remove());
+                        
+                        // Add customer bookings
+                        const myBookingsLi = document.createElement("li");
+                        myBookingsLi.innerHTML = `<a href="/my-bookings" id="nav-my-bookings"><i class="fa-solid fa-calendar-check"></i> Lịch đặt của tôi</a>`;
+                        navLinks.appendChild(myBookingsLi);
+                        
+                        // Add dashboard if admin or manager
+                        if (role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER') {
+                            const dashboardLi = document.createElement("li");
+                            dashboardLi.innerHTML = `<a href="/admin/dashboard" id="nav-admin"><i class="fa-solid fa-chart-line"></i> Dashboard</a>`;
+                            navLinks.appendChild(dashboardLi);
+                        }
+                        
+                        // Add Profile link (clickable username)
+                        const profileLi = document.createElement("li");
+                        profileLi.innerHTML = `<a href="/profile" id="nav-profile" style="color: var(--primary); font-weight: 600;"><i class="fa-solid fa-circle-user"></i> ${username}</a>`;
+                        navLinks.appendChild(profileLi);
+                        
+                        const logoutLi = document.createElement("li");
+                        logoutLi.innerHTML = `<a class="logout-link" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</a>`;
+                        navLinks.appendChild(logoutLi);
+                    } else {
+                        // Token is malformed - clear it
+                        console.warn("JWT token không hợp lệ, đăng xuất người dùng.");
+                        localStorage.clear();
+                    }
+                }
+            });
+
+            async function handleLogout() {
+                const token = localStorage.getItem("accessToken");
+                if (token) {
+                    try {
+                        await fetch("/api/v1/auth/logout", {
+                            method: "POST",
+                            headers: {
+                                "Authorization": `Bearer ${token}`
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Lỗi khi gọi API logout:", e);
+                    }
+                }
+                localStorage.clear();
+                window.location.href = "/login";
+            }
+            
+            // Common Utility function to show Toast message
+            function showToast(message, type = "success") {
+                // Check if container exists, if not create it
+                let container = document.getElementById("toast-box");
+                if (!container) {
+                    container = document.createElement("div");
+                    container.id = "toast-box";
+                    container.className = "toast-container";
+                    document.body.appendChild(container);
+                }
+                
+                const toast = document.createElement("div");
+                toast.className = `toast glass ${type}`;
+                const icon = type === "success" ? "fa-circle-check" : "fa-triangle-exclamation";
+                const iconColor = type === "success" ? "var(--success)" : "var(--danger)";
+                
+                toast.innerHTML = `
+                    <i class="fa-solid ${icon}" style="color: ${iconColor}; font-size: 20px;"></i>
+                    <span>${message}</span>
+                `;
+                
+                container.appendChild(toast);
+                
+                // Remove toast after 4s
+                setTimeout(() => {
+                    toast.style.animation = "slideOut 0.3s ease-in forwards";
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 4000);
+            }
+        </script>
+        
+        <style>
+            @keyframes slideOut {
+                to {
+                    transform: translateY(20px);
+                    opacity: 0;
+                }
+            }
+        </style>
+    </header>
+
+    <footer th:fragment="footer">
+        <div class="container">
+            <p>&copy; 2026 Sport Booking System || Nguyễn Dương Phương Trang</p>
+        </div>
+    </footer>
+
+</body>
+</html>
